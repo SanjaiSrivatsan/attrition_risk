@@ -1,5 +1,6 @@
 """
 Flask Web Application for Career Path Analysis
+Complete version with integrated training option
 Run with: python app.py
 """
 
@@ -9,11 +10,17 @@ import numpy as np
 import pickle
 import os
 from sklearn.preprocessing import LabelEncoder, StandardScaler
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import train_test_split, cross_val_score
+from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import (classification_report, confusion_matrix, 
+                             accuracy_score, precision_score, recall_score, 
+                             f1_score, roc_auc_score)
 from imblearn.over_sampling import SMOTE
-import json
 import traceback
+import warnings
+warnings.filterwarnings('ignore')
 
 app = Flask(__name__)
 
@@ -21,32 +28,20 @@ app = Flask(__name__)
 model = None
 scaler = None
 feature_names = None
+model_metadata = None
 dataset_info = {}
 df_original = None
 
-def load_and_train_model():
-    """Load dataset and train model"""
-    global model, scaler, feature_names, dataset_info, df_original
+def train_and_save_model(data_path='WA_Fn-UseC_-HR-Employee-Attrition.csv'):
+    """Train all models, select best, and save"""
+    print("\n" + "="*80)
+    print("TRAINING NEW MODEL")
+    print("="*80)
     
     try:
         # Load dataset
-        df = pd.read_csv('WA_Fn-UseC_-HR-Employee-Attrition.csv')
-        df_original = df.copy()
-        
-        # Store dataset info
-        attrition_yes = (df['Attrition'] == 'Yes').sum()
-        attrition_no = (df['Attrition'] == 'No').sum()
-        
-        dataset_info = {
-            'total_employees': int(len(df)),
-            'attrition_count': int(attrition_yes),
-            'retention_count': int(attrition_no),
-            'attrition_rate': f"{(attrition_yes / len(df) * 100):.2f}",
-            'avg_age': f"{df['Age'].mean():.1f}",
-            'avg_income': f"{df['MonthlyIncome'].mean():.2f}",
-            'departments': df['Department'].unique().tolist() if 'Department' in df.columns else [],
-            'job_roles': df['JobRole'].unique().tolist() if 'JobRole' in df.columns else []
-        }
+        df = pd.read_csv(data_path)
+        print(f"✓ Loaded dataset: {df.shape}")
         
         # Preprocess
         df_processed = df.copy()
@@ -62,43 +57,228 @@ def load_and_train_model():
         # Encode categorical variables
         le = LabelEncoder()
         categorical_cols = df_processed.select_dtypes(include=['object']).columns
+        label_encoders = {}
         
         for col in categorical_cols:
-            df_processed[col] = le.fit_transform(df_processed[col])
+            le_col = LabelEncoder()
+            df_processed[col] = le_col.fit_transform(df_processed[col])
+            label_encoders[col] = le_col
         
         # Separate features and target
         X = df_processed.drop('Attrition', axis=1)
         y = df_processed['Attrition']
         
-        feature_names = X.columns.tolist()
+        feature_names_list = X.columns.tolist()
+        print(f"✓ Features: {len(feature_names_list)}")
         
-        # Split data
+        # Train-test split
         X_train, X_test, y_train, y_test = train_test_split(
             X, y, test_size=0.2, random_state=42, stratify=y
         )
         
         # Apply SMOTE
+        print("✓ Applying SMOTE...")
         smote = SMOTE(random_state=42)
-        X_train, y_train = smote.fit_resample(X_train, y_train)
+        X_train_res, y_train_res = smote.fit_resample(X_train, y_train)
         
         # Scale features
-        scaler = StandardScaler()
-        X_train = scaler.fit_transform(X_train)
+        scaler_obj = StandardScaler()
+        X_train_scaled = scaler_obj.fit_transform(X_train_res)
+        X_test_scaled = scaler_obj.transform(X_test)
         
-        # Train model
-        model = RandomForestClassifier(n_estimators=100, random_state=42)
-        model.fit(X_train, y_train)
+        # Train all models
+        print("\n" + "="*80)
+        print("TRAINING ALL MODELS")
+        print("="*80)
         
-        print("✓ Model trained successfully!")
-        print(f"✓ Features: {len(feature_names)}")
-        print(f"✓ Dataset info loaded: {dataset_info}")
+        models = {
+            'Logistic Regression': LogisticRegression(max_iter=1000, random_state=42),
+            'Decision Tree': DecisionTreeClassifier(random_state=42, max_depth=10),
+            'Random Forest': RandomForestClassifier(n_estimators=100, random_state=42),
+            'Gradient Boosting': GradientBoostingClassifier(n_estimators=100, random_state=42)
+        }
+        
+        results = {}
+        best_score = 0
+        best_model = None
+        best_model_name = None
+        
+        for name, model_obj in models.items():
+            print(f"\n→ Training {name}...")
+            
+            # Train
+            model_obj.fit(X_train_scaled, y_train_res)
+            
+            # Predict
+            y_pred = model_obj.predict(X_test_scaled)
+            y_pred_proba = model_obj.predict_proba(X_test_scaled)[:, 1] if hasattr(model_obj, 'predict_proba') else None
+            
+            # Calculate metrics
+            accuracy = accuracy_score(y_test, y_pred)
+            precision = precision_score(y_test, y_pred)
+            recall = recall_score(y_test, y_pred)
+            f1 = f1_score(y_test, y_pred)
+            auc = roc_auc_score(y_test, y_pred_proba) if y_pred_proba is not None else 0
+            
+            print(f"  Accuracy: {accuracy:.4f}, F1: {f1:.4f}, AUC: {auc:.4f}")
+            
+            # Store results
+            results[name] = {
+                'accuracy': accuracy,
+                'precision': precision,
+                'recall': recall,
+                'f1_score': f1,
+                'auc': auc,
+                'model': model_obj
+            }
+            
+            # Composite score for selection
+            composite_score = f1 * 0.4 + auc * 0.4 + accuracy * 0.2
+            
+            if composite_score > best_score:
+                best_score = composite_score
+                best_model = model_obj
+                best_model_name = name
+        
+        # Print best model
+        print("\n" + "="*80)
+        print("BEST MODEL SELECTED")
+        print("="*80)
+        print(f"\n✓ WINNER: {best_model_name}")
+        print(f"  - Accuracy:  {results[best_model_name]['accuracy']:.4f}")
+        print(f"  - Precision: {results[best_model_name]['precision']:.4f}")
+        print(f"  - Recall:    {results[best_model_name]['recall']:.4f}")
+        print(f"  - F1-Score:  {results[best_model_name]['f1_score']:.4f}")
+        print(f"  - ROC-AUC:   {results[best_model_name]['auc']:.4f}")
+        
+        # Create models directory
+        if not os.path.exists('models'):
+            os.makedirs('models')
+        
+        # Save best model
+        with open('models/best_model.pkl', 'wb') as f:
+            pickle.dump(best_model, f)
+        
+        with open('models/scaler.pkl', 'wb') as f:
+            pickle.dump(scaler_obj, f)
+        
+        with open('models/feature_names.pkl', 'wb') as f:
+            pickle.dump(feature_names_list, f)
+        
+        with open('models/label_encoders.pkl', 'wb') as f:
+            pickle.dump(label_encoders, f)
+        
+        # Save metadata
+        metadata = {
+            'model_name': best_model_name,
+            'accuracy': results[best_model_name]['accuracy'],
+            'precision': results[best_model_name]['precision'],
+            'recall': results[best_model_name]['recall'],
+            'f1_score': results[best_model_name]['f1_score'],
+            'roc_auc': results[best_model_name]['auc'],
+            'n_features': len(feature_names_list),
+            'training_samples': len(X_train_scaled),
+            'test_samples': len(X_test)
+        }
+        
+        with open('models/model_metadata.pkl', 'wb') as f:
+            pickle.dump(metadata, f)
+        
+        print("\n✓ All model files saved to models/ directory")
+        
         return True
         
-    except FileNotFoundError:
-        print("❌ Dataset not found. Please download it from Kaggle.")
-        return False
     except Exception as e:
-        print(f"❌ Error: {str(e)}")
+        print(f"\n❌ Training error: {str(e)}")
+        traceback.print_exc()
+        return False
+
+def load_trained_model():
+    """Load the pre-trained model and preprocessing objects"""
+    global model, scaler, feature_names, model_metadata, dataset_info, df_original
+    
+    try:
+        print("\n" + "="*80)
+        print("LOADING MODEL")
+        print("="*80)
+        
+        # Check if model files exist
+        model_files = [
+            'models/best_model.pkl',
+            'models/scaler.pkl',
+            'models/feature_names.pkl',
+            'models/model_metadata.pkl'
+        ]
+        
+        missing_files = [f for f in model_files if not os.path.exists(f)]
+        
+        if missing_files:
+            print("\n⚠️  Model files not found. Training new model...")
+            
+            # Check if dataset exists
+            if not os.path.exists('WA_Fn-UseC_-HR-Employee-Attrition.csv'):
+                print("\n❌ Dataset not found!")
+                print("Please download: WA_Fn-UseC_-HR-Employee-Attrition.csv")
+                return False
+            
+            # Train new model
+            if not train_and_save_model():
+                return False
+            
+            print("\n✓ Model trained successfully! Loading it now...")
+        
+        # Load model
+        with open('models/best_model.pkl', 'rb') as f:
+            model = pickle.load(f)
+        print("✓ Loaded model")
+        
+        # Load scaler
+        with open('models/scaler.pkl', 'rb') as f:
+            scaler = pickle.load(f)
+        print("✓ Loaded scaler")
+        
+        # Load feature names
+        with open('models/feature_names.pkl', 'rb') as f:
+            feature_names = pickle.load(f)
+        print(f"✓ Loaded {len(feature_names)} features")
+        
+        # Load metadata
+        with open('models/model_metadata.pkl', 'rb') as f:
+            model_metadata = pickle.load(f)
+        print(f"✓ Model: {model_metadata['model_name']}")
+        print(f"  Accuracy: {model_metadata['accuracy']:.4f}")
+        print(f"  F1-Score: {model_metadata['f1_score']:.4f}")
+        
+        # Load dataset for statistics
+        df_original = pd.read_csv('WA_Fn-UseC_-HR-Employee-Attrition.csv')
+        
+        # Calculate dataset info
+        attrition_yes = (df_original['Attrition'] == 'Yes').sum()
+        attrition_no = (df_original['Attrition'] == 'No').sum()
+        
+        dataset_info = {
+            'total_employees': int(len(df_original)),
+            'attrition_count': int(attrition_yes),
+            'retention_count': int(attrition_no),
+            'attrition_rate': f"{(attrition_yes / len(df_original) * 100):.2f}",
+            'avg_age': f"{df_original['Age'].mean():.1f}",
+            'avg_income': f"{df_original['MonthlyIncome'].mean():.2f}",
+            'departments': df_original['Department'].unique().tolist() if 'Department' in df_original.columns else [],
+            'job_roles': df_original['JobRole'].unique().tolist() if 'JobRole' in df_original.columns else [],
+            'model_name': model_metadata['model_name'],
+            'model_accuracy': f"{model_metadata['accuracy']*100:.2f}",
+            'model_f1_score': f"{model_metadata['f1_score']*100:.2f}",
+            'model_precision': f"{model_metadata['precision']*100:.2f}",
+            'model_recall': f"{model_metadata['recall']*100:.2f}",
+            'model_roc_auc': f"{model_metadata['roc_auc']*100:.2f}"
+        }
+        
+        print("✓ Dataset loaded")
+        
+        return True
+        
+    except Exception as e:
+        print(f"\n❌ Error: {str(e)}")
         traceback.print_exc()
         return False
 
@@ -129,7 +309,8 @@ def predict():
             'prediction': 'High Risk' if prediction == 1 else 'Low Risk',
             'attrition_probability': f"{probability[1] * 100:.2f}%",
             'retention_probability': f"{probability[0] * 100:.2f}%",
-            'risk_level': 'High' if probability[1] > 0.7 else 'Medium' if probability[1] > 0.4 else 'Low'
+            'risk_level': 'High' if probability[1] > 0.7 else 'Medium' if probability[1] > 0.4 else 'Low',
+            'model_used': model_metadata['model_name']
         }
         
         return jsonify(result)
@@ -176,6 +357,7 @@ def batch_predict():
         # Add results to dataframe
         df['Attrition_Prediction'] = ['High Risk' if p == 1 else 'Low Risk' for p in predictions]
         df['Attrition_Probability'] = [f"{p*100:.2f}%" for p in probabilities]
+        df['Model_Used'] = model_metadata['model_name']
         
         # Save results
         output_path = 'predictions.csv'
@@ -185,7 +367,8 @@ def batch_predict():
             'total_employees': len(df),
             'high_risk_count': int((predictions == 1).sum()),
             'low_risk_count': int((predictions == 0).sum()),
-            'avg_risk_probability': f"{probabilities.mean() * 100:.2f}%"
+            'avg_risk_probability': f"{probabilities.mean() * 100:.2f}%",
+            'model_used': model_metadata['model_name']
         }
         
         return jsonify({
@@ -216,13 +399,26 @@ def feature_importance():
         if model is None:
             return jsonify({'error': 'Model not trained'}), 400
         
-        importances = model.feature_importances_
-        indices = np.argsort(importances)[::-1][:15]
-        
-        data = {
-            'features': [feature_names[i] for i in indices],
-            'importances': [float(importances[i]) for i in indices]
-        }
+        # Check if model has feature_importances_ attribute
+        if hasattr(model, 'feature_importances_'):
+            importances = model.feature_importances_
+            indices = np.argsort(importances)[::-1][:15]
+            
+            data = {
+                'features': [feature_names[i] for i in indices],
+                'importances': [float(importances[i]) for i in indices]
+            }
+        else:
+            # For models without feature importance (e.g., Logistic Regression)
+            if hasattr(model, 'coef_'):
+                coef = np.abs(model.coef_[0])
+                indices = np.argsort(coef)[::-1][:15]
+                data = {
+                    'features': [feature_names[i] for i in indices],
+                    'importances': [float(coef[i]) for i in indices]
+                }
+            else:
+                return jsonify({'error': 'Model does not support feature importance'}), 400
         
         return jsonify(data)
     except Exception as e:
@@ -250,6 +446,56 @@ def dataset_stats():
         traceback.print_exc()
         return jsonify({'error': str(e)}), 500
 
+@app.route('/api/model_info')
+def model_info():
+    """Get current model information"""
+    try:
+        if model_metadata is None:
+            return jsonify({'error': 'Model not loaded'}), 400
+        
+        info = {
+            'model_name': model_metadata['model_name'],
+            'accuracy': f"{model_metadata['accuracy']*100:.2f}%",
+            'precision': f"{model_metadata['precision']*100:.2f}%",
+            'recall': f"{model_metadata['recall']*100:.2f}%",
+            'f1_score': f"{model_metadata['f1_score']*100:.2f}%",
+            'roc_auc': f"{model_metadata['roc_auc']*100:.2f}%",
+            'n_features': model_metadata['n_features'],
+            'training_samples': model_metadata['training_samples'],
+            'test_samples': model_metadata['test_samples']
+        }
+        
+        return jsonify(info)
+    except Exception as e:
+        print(f"Model info error: {str(e)}")
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/retrain', methods=['POST'])
+def retrain_model():
+    """Retrain the model with current dataset"""
+    try:
+        print("\n" + "="*80)
+        print("RETRAINING MODEL (User Requested)")
+        print("="*80)
+        
+        if train_and_save_model():
+            # Reload the new model
+            if load_trained_model():
+                return jsonify({
+                    'success': True,
+                    'message': 'Model retrained successfully',
+                    'model_name': model_metadata['model_name'],
+                    'accuracy': f"{model_metadata['accuracy']*100:.2f}%"
+                })
+        
+        return jsonify({'error': 'Training failed'}), 500
+        
+    except Exception as e:
+        print(f"Retrain error: {str(e)}")
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 500
+
 @app.errorhandler(404)
 def not_found(e):
     """Handle 404 errors"""
@@ -266,14 +512,43 @@ if __name__ == '__main__':
     print("="*80)
     print("\nInitializing...")
     
-    if load_and_train_model():
-        print("\n✓ Server starting...")
-        print("✓ Access the application at: http://127.0.0.1:5000")
-        print("✓ API endpoints available:")
-        print("  - /api/feature_importance")
-        print("  - /api/dataset_stats")
-        print("\nPress CTRL+C to stop the server\n")
+    if load_trained_model():
+        print("\n" + "="*80)
+        print("✓ SERVER READY")
+        print("="*80)
+        print(f"\n🤖 Active Model: {model_metadata['model_name']}")
+        print(f"📊 Performance:")
+        print(f"   • Accuracy:  {model_metadata['accuracy']*100:.2f}%")
+        print(f"   • Precision: {model_metadata['precision']*100:.2f}%")
+        print(f"   • Recall:    {model_metadata['recall']*100:.2f}%")
+        print(f"   • F1-Score:  {model_metadata['f1_score']*100:.2f}%")
+        print(f"   • ROC-AUC:   {model_metadata['roc_auc']*100:.2f}%")
+        
+        print("\n🌐 Access the application at: http://127.0.0.1:5000")
+        print("\n📡 Available endpoints:")
+        print("   • GET  /                  (Home page)")
+        print("   • POST /predict           (Single prediction)")
+        print("   • POST /batch_predict     (Batch prediction)")
+        print("   • GET  /analytics         (Analytics dashboard)")
+        print("   • GET  /api/model_info    (Model information)")
+        print("   • POST /api/retrain       (Retrain model)")
+        
+        print("\n💡 Tips:")
+        print("   • Model automatically trains if not found")
+        print("   • Use POST /api/retrain to retrain with new data")
+        print("   • All predictions show which model is being used")
+        
+        print("\n⌨️  Press CTRL+C to stop the server")
+        print("="*80 + "\n")
+        
         app.run(debug=True, host='0.0.0.0', port=5000)
     else:
-        print("\n❌ Failed to start application. Please check the dataset.")
-        print("Download from: https://www.kaggle.com/datasets/pavansubhasht/ibm-hr-analytics-attrition-dataset")
+        print("\n" + "="*80)
+        print("❌ FAILED TO START")
+        print("="*80)
+        print("\n⚠️  Please ensure:")
+        print("   1. Dataset file exists: WA_Fn-UseC_-HR-Employee-Attrition.csv")
+        print("   2. Required packages installed: pip install -r requirements.txt")
+        print("\n📥 Download dataset from:")
+        print("   https://www.kaggle.com/datasets/pavansubhasht/ibm-hr-analytics-attrition-dataset")
+        print("="*80)
