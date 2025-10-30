@@ -118,6 +118,105 @@
             line-height: 1.6;
         }
 
+        .employees-card {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            margin-top: 30px;
+        }
+
+        .employees-card h2 {
+            color: #667eea;
+            margin-bottom: 20px;
+            font-size: 1.5em;
+        }
+
+        .summary-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin-bottom: 25px;
+        }
+
+        .stat-box {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 15px;
+            border-radius: 10px;
+            text-align: center;
+        }
+
+        .stat-box .number {
+            font-size: 2em;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .stat-box .label {
+            font-size: 0.9em;
+            opacity: 0.9;
+        }
+
+        .employees-table-container {
+            overflow-x: auto;
+            margin-top: 20px;
+        }
+
+        .employees-table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+        }
+
+        .employees-table th {
+            background: #667eea;
+            color: white;
+            padding: 12px;
+            text-align: left;
+            font-weight: 600;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        .employees-table td {
+            padding: 12px;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .employees-table tr:hover {
+            background: #f5f5f5;
+        }
+
+        .risk-badge {
+            display: inline-block;
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 0.85em;
+            font-weight: 600;
+            color: white;
+        }
+
+        .filter-controls {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .filter-controls select, .filter-controls input {
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 0.95em;
+        }
+
+        .search-box {
+            flex: 1;
+            min-width: 200px;
+        }
+
         .loading {
             text-align: center;
             padding: 40px;
@@ -203,10 +302,60 @@
                     </p>
                 </div>
             </div>
+
+            <div class="employees-card">
+                <h2>🚨 Employees at Attrition Risk</h2>
+                
+                <div id="employeesSummary" class="summary-stats">
+                    <!-- Summary stats will be loaded here -->
+                </div>
+
+                <div class="filter-controls">
+                    <input type="text" id="searchBox" class="search-box" placeholder="🔍 Search by Employee Number, Department, or Job Role...">
+                    <select id="riskFilter">
+                        <option value="all">All Risk Levels</option>
+                        <option value="Critical">Critical Risk</option>
+                        <option value="High">High Risk</option>
+                        <option value="Medium">Medium Risk</option>
+                    </select>
+                    <select id="departmentFilter">
+                        <option value="all">All Departments</option>
+                    </select>
+                </div>
+
+                <div class="employees-table-container">
+                    <table class="employees-table" id="employeesTable">
+                        <thead>
+                            <tr>
+                                <th>Employee #</th>
+                                <th>Risk Level</th>
+                                <th>Age</th>
+                                <th>Department</th>
+                                <th>Job Role</th>
+                                <th>Income</th>
+                                <th>Tenure (Years)</th>
+                                <th>Job Satisfaction</th>
+                                <th>Work-Life Balance</th>
+                                <th>Overtime</th>
+                            </tr>
+                        </thead>
+                        <tbody id="employeesTableBody">
+                            <tr>
+                                <td colspan="10" style="text-align: center; padding: 40px;">
+                                    Loading employee data...
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
         </div>
     </div>
 
     <script>
+        let allEmployees = [];
+        let filteredEmployees = [];
+
         // Load and display analytics
         async function loadAnalytics() {
             try {
@@ -218,9 +367,22 @@
                 const statsResponse = await fetch('/api/dataset_stats');
                 const statsData = await statsResponse.json();
 
+                // Fetch at-risk employees
+                const employeesResponse = await fetch('/api/at_risk_employees');
+                const employeesData = await employeesResponse.json();
+
                 // Hide loading
                 document.getElementById('loading').style.display = 'none';
                 document.getElementById('dashboard').style.display = 'block';
+
+                // Load employees data
+                if (employeesData.success) {
+                    allEmployees = employeesData.employees;
+                    filteredEmployees = allEmployees;
+                    displayEmployeesSummary(employeesData.summary);
+                    displayEmployeesTable(allEmployees);
+                    populateDepartmentFilter(allEmployees);
+                }
 
                 // Create Feature Importance Chart
                 const featureCtx = document.getElementById('featureChart').getContext('2d');
@@ -338,6 +500,105 @@
                     '<p style="color: #f44336;">Error loading analytics: ' + error.message + '</p>';
             }
         }
+
+        // Display employees summary statistics
+        function displayEmployeesSummary(summary) {
+            const summaryHtml = `
+                <div class="stat-box">
+                    <div class="number">${summary.total_at_risk}</div>
+                    <div class="label">Total At Risk</div>
+                </div>
+                <div class="stat-box" style="background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);">
+                    <div class="number">${summary.critical_risk}</div>
+                    <div class="label">Critical Risk</div>
+                </div>
+                <div class="stat-box" style="background: linear-gradient(135deg, #f39c12 0%, #e67e22 100%);">
+                    <div class="number">${summary.high_risk}</div>
+                    <div class="label">High Risk</div>
+                </div>
+                <div class="stat-box" style="background: linear-gradient(135deg, #f1c40f 0%, #f39c12 100%);">
+                    <div class="number">${summary.medium_risk}</div>
+                    <div class="label">Medium Risk</div>
+                </div>
+                <div class="stat-box" style="background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);">
+                    <div class="number">${summary.avg_tenure.toFixed(1)}</div>
+                    <div class="label">Avg Tenure (Years)</div>
+                </div>
+                <div class="stat-box" style="background: linear-gradient(135deg, #2ecc71 0%, #27ae60 100%);">
+                    <div class="number">$${Math.round(summary.avg_income).toLocaleString()}</div>
+                    <div class="label">Avg Income</div>
+                </div>
+            `;
+            document.getElementById('employeesSummary').innerHTML = summaryHtml;
+        }
+
+        // Display employees table
+        function displayEmployeesTable(employees) {
+            const tbody = document.getElementById('employeesTableBody');
+            
+            if (employees.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="10" style="text-align: center; padding: 40px;">No employees found matching filters</td></tr>';
+                return;
+            }
+
+            const rows = employees.map(emp => `
+                <tr>
+                    <td><strong>${emp.EmployeeNumber}</strong></td>
+                    <td><span class="risk-badge" style="background-color: ${emp.risk_color}">${emp.risk_level}</span></td>
+                    <td>${emp.Age}</td>
+                    <td>${emp.Department}</td>
+                    <td>${emp.JobRole}</td>
+                    <td>$${emp.MonthlyIncome ? emp.MonthlyIncome.toLocaleString() : 'N/A'}</td>
+                    <td>${emp.YearsAtCompany}</td>
+                    <td>${emp.JobSatisfaction}/4</td>
+                    <td>${emp.WorkLifeBalance}/4</td>
+                    <td>${emp.OverTime === 'Yes' ? '⚠️ Yes' : 'No'}</td>
+                </tr>
+            `).join('');
+            
+            tbody.innerHTML = rows;
+        }
+
+        // Populate department filter
+        function populateDepartmentFilter(employees) {
+            const departments = [...new Set(employees.map(e => e.Department))];
+            const select = document.getElementById('departmentFilter');
+            
+            departments.forEach(dept => {
+                const option = document.createElement('option');
+                option.value = dept;
+                option.textContent = dept;
+                select.appendChild(option);
+            });
+        }
+
+        // Filter functions
+        function applyFilters() {
+            const searchTerm = document.getElementById('searchBox').value.toLowerCase();
+            const riskFilter = document.getElementById('riskFilter').value;
+            const deptFilter = document.getElementById('departmentFilter').value;
+
+            filteredEmployees = allEmployees.filter(emp => {
+                const matchesSearch = !searchTerm || 
+                    emp.EmployeeNumber.toString().includes(searchTerm) ||
+                    emp.Department.toLowerCase().includes(searchTerm) ||
+                    emp.JobRole.toLowerCase().includes(searchTerm);
+                
+                const matchesRisk = riskFilter === 'all' || emp.risk_level === riskFilter;
+                const matchesDept = deptFilter === 'all' || emp.Department === deptFilter;
+
+                return matchesSearch && matchesRisk && matchesDept;
+            });
+
+            displayEmployeesTable(filteredEmployees);
+        }
+
+        // Event listeners for filters
+        document.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('searchBox').addEventListener('input', applyFilters);
+            document.getElementById('riskFilter').addEventListener('change', applyFilters);
+            document.getElementById('departmentFilter').addEventListener('change', applyFilters);
+        });
 
         // Load on page load
         window.addEventListener('load', loadAnalytics);
