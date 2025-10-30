@@ -5,17 +5,53 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Career Analysis System</title>
     <style>
+        :root {
+            --bg-primary: #ffffff;
+            --bg-secondary: #f8f9fa;
+            --bg-gradient: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            --text-primary: #000000;
+            --text-secondary: #495057;
+            --accent-primary: #000000;
+            --accent-secondary: #343a40;
+            --border-color: #dee2e6;
+            --card-bg: #ffffff;
+            --card-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            --header-bg: rgba(255, 255, 255, 0.95);
+            --input-bg: #ffffff;
+            --input-border: #ced4da;
+            --button-hover: #2d2d2d;
+        }
+
+        [data-theme="dark"] {
+            --bg-primary: #121212;
+            --bg-secondary: #1e1e1e;
+            --bg-gradient: linear-gradient(135deg, #1e1e1e 0%, #2d2d2d 100%);
+            --text-primary: #ffffff;
+            --text-secondary: #b0b0b0;
+            --accent-primary: #ffffff;
+            --accent-secondary: #e0e0e0;
+            --border-color: #404040;
+            --card-bg: #1e1e1e;
+            --card-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+            --header-bg: rgba(30, 30, 30, 0.95);
+            --input-bg: #2d2d2d;
+            --input-border: #404040;
+            --button-hover: #e0e0e0;
+        }
+
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
+            transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
         }
 
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: var(--bg-gradient);
             min-height: 100vh;
             padding: 20px;
+            color: var(--text-primary);
         }
 
         .container {
@@ -25,24 +61,70 @@
 
         .header {
             text-align: center;
-            color: white;
+            color: var(--text-primary);
             margin-bottom: 40px;
             padding: 30px;
-            background: rgba(255, 255, 255, 0.1);
+            background: var(--header-bg);
             backdrop-filter: blur(10px);
             border-radius: 20px;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            box-shadow: var(--card-shadow);
+            border: 1px solid var(--border-color);
+            position: relative;
         }
 
         .header h1 {
             font-size: 2.5em;
             margin-bottom: 10px;
-            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.2);
+            font-weight: 700;
         }
 
         .header p {
             font-size: 1.2em;
-            opacity: 0.9;
+            color: var(--text-secondary);
+        }
+
+        .theme-toggle {
+            position: absolute;
+            top: 30px;
+            right: 30px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .toggle-switch {
+            position: relative;
+            width: 60px;
+            height: 30px;
+            background: var(--border-color);
+            border-radius: 15px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+
+        .toggle-switch:hover {
+            background: var(--accent-secondary);
+        }
+
+        .toggle-slider {
+            position: absolute;
+            top: 3px;
+            left: 3px;
+            width: 24px;
+            height: 24px;
+            background: var(--accent-primary);
+            border-radius: 50%;
+            transition: transform 0.3s ease;
+        }
+
+        [data-theme="dark"] .toggle-slider {
+            transform: translateX(30px);
+        }
+
+        .toggle-label {
+            font-size: 0.9em;
+            font-weight: 600;
+            color: var(--text-primary);
         }
 
         .stats-grid {
@@ -53,11 +135,12 @@
         }
 
         .stat-card {
-            background: white;
+            background: var(--card-bg);
             padding: 25px;
             border-radius: 15px;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            box-shadow: var(--card-shadow);
             transition: transform 0.3s ease;
+            border: 1px solid var(--border-color);
         }
 
         .stat-card:hover {
@@ -66,7 +149,7 @@
         }
 
         .stat-card h3 {
-            color: #667eea;
+            color: var(--text-secondary);
             font-size: 0.9em;
             text-transform: uppercase;
             margin-bottom: 10px;
@@ -76,7 +159,7 @@
         .stat-card .value {
             font-size: 2em;
             font-weight: bold;
-            color: #333;
+            color: var(--accent-primary);
         }
 
         .main-content {
@@ -93,17 +176,18 @@
         }
 
         .card {
-            background: white;
+            background: var(--card-bg);
             padding: 30px;
             border-radius: 15px;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            box-shadow: var(--card-shadow);
+            border: 1px solid var(--border-color);
         }
 
         .card h2 {
-            color: #667eea;
+            color: var(--accent-primary);
             margin-bottom: 20px;
             font-size: 1.5em;
-            border-bottom: 3px solid #667eea;
+            border-bottom: 3px solid var(--accent-primary);
             padding-bottom: 10px;
         }
 
@@ -114,7 +198,7 @@
         .form-group label {
             display: block;
             margin-bottom: 8px;
-            color: #555;
+            color: var(--text-primary);
             font-weight: 600;
         }
 
@@ -122,16 +206,18 @@
         .form-group select {
             width: 100%;
             padding: 12px;
-            border: 2px solid #e0e0e0;
+            border: 2px solid var(--input-border);
             border-radius: 8px;
             font-size: 1em;
             transition: border-color 0.3s;
+            background: var(--input-bg);
+            color: var(--text-primary);
         }
 
         .form-group input:focus,
         .form-group select:focus {
             outline: none;
-            border-color: #667eea;
+            border-color: var(--accent-primary);
         }
 
         .form-row {
@@ -141,10 +227,10 @@
         }
 
         .btn {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
+            background: var(--accent-primary);
+            color: var(--bg-primary);
             padding: 15px 30px;
-            border: none;
+            border: 2px solid var(--accent-primary);
             border-radius: 8px;
             font-size: 1.1em;
             cursor: pointer;
@@ -156,7 +242,9 @@
 
         .btn:hover {
             transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+            background: var(--button-hover);
+            border-color: var(--button-hover);
         }
 
         .btn:active {
@@ -164,7 +252,8 @@
         }
 
         .btn-secondary {
-            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            background: var(--accent-secondary);
+            border-color: var(--accent-secondary);
         }
 
         .result-box {
@@ -300,6 +389,13 @@
 <body>
     <div class="container">
         <div class="header">
+            <div class="theme-toggle">
+                <span class="toggle-label">☀️</span>
+                <div class="toggle-switch" onclick="toggleTheme()">
+                    <div class="toggle-slider"></div>
+                </div>
+                <span class="toggle-label">🌙</span>
+            </div>
             <h1>🎯 Career Analysis System</h1>
             <p>Predict Employee Attrition Using Machine Learning</p>
         </div>
@@ -552,6 +648,24 @@
                 alert('Error: ' + error.message);
             }
         }
+
+        // Theme management
+        function toggleTheme() {
+            const html = document.documentElement;
+            const currentTheme = html.getAttribute('data-theme');
+            const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+            html.setAttribute('data-theme', newTheme);
+            localStorage.setItem('theme', newTheme);
+        }
+
+        // Initialize theme from localStorage
+        function initTheme() {
+            const savedTheme = localStorage.getItem('theme') || 'light';
+            document.documentElement.setAttribute('data-theme', savedTheme);
+        }
+
+        // Initialize theme on page load
+        initTheme();
     </script>
 </body>
 </html>
