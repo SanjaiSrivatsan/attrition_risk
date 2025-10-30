@@ -3,20 +3,56 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Analytics Dashboard - Career Path Analysis</title>
+    <title>Analytics Dashboard - Career Analysis</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
+        :root {
+            --bg-primary: #ffffff;
+            --bg-secondary: #f8f9fa;
+            --bg-gradient: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            --text-primary: #000000;
+            --text-secondary: #495057;
+            --accent-primary: #000000;
+            --accent-secondary: #343a40;
+            --border-color: #dee2e6;
+            --card-bg: #ffffff;
+            --card-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            --header-bg: rgba(255, 255, 255, 0.95);
+            --input-bg: #ffffff;
+            --input-border: #ced4da;
+            --table-hover: #f8f9fa;
+        }
+
+        [data-theme="dark"] {
+            --bg-primary: #121212;
+            --bg-secondary: #1e1e1e;
+            --bg-gradient: linear-gradient(135deg, #1e1e1e 0%, #2d2d2d 100%);
+            --text-primary: #ffffff;
+            --text-secondary: #b0b0b0;
+            --accent-primary: #ffffff;
+            --accent-secondary: #e0e0e0;
+            --border-color: #404040;
+            --card-bg: #1e1e1e;
+            --card-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+            --header-bg: rgba(30, 30, 30, 0.95);
+            --input-bg: #2d2d2d;
+            --input-border: #404040;
+            --table-hover: #2d2d2d;
+        }
+
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
+            transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
         }
 
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: var(--bg-gradient);
             min-height: 100vh;
             padding: 20px;
+            color: var(--text-primary);
         }
 
         .container {
@@ -26,36 +62,89 @@
 
         .header {
             text-align: center;
-            color: white;
+            color: var(--text-primary);
             margin-bottom: 40px;
             padding: 30px;
-            background: rgba(255, 255, 255, 0.1);
+            background: var(--header-bg);
             backdrop-filter: blur(10px);
             border-radius: 20px;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            box-shadow: var(--card-shadow);
+            border: 1px solid var(--border-color);
+            position: relative;
         }
 
         .header h1 {
             font-size: 2.5em;
             margin-bottom: 10px;
-            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.2);
+            font-weight: 700;
+        }
+
+        .header p {
+            color: var(--text-secondary);
+        }
+
+        .theme-toggle {
+            position: absolute;
+            top: 30px;
+            right: 30px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .toggle-switch {
+            position: relative;
+            width: 60px;
+            height: 30px;
+            background: var(--border-color);
+            border-radius: 15px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+
+        .toggle-switch:hover {
+            background: var(--accent-secondary);
+        }
+
+        .toggle-slider {
+            position: absolute;
+            top: 3px;
+            left: 3px;
+            width: 24px;
+            height: 24px;
+            background: var(--accent-primary);
+            border-radius: 50%;
+            transition: transform 0.3s ease;
+        }
+
+        [data-theme="dark"] .toggle-slider {
+            transform: translateX(30px);
+        }
+
+        .toggle-label {
+            font-size: 0.9em;
+            font-weight: 600;
+            color: var(--text-primary);
         }
 
         .back-btn {
             display: inline-block;
             margin-bottom: 20px;
             padding: 12px 25px;
-            background: white;
-            color: #667eea;
+            background: var(--accent-primary);
+            color: var(--bg-primary);
             text-decoration: none;
             border-radius: 8px;
             font-weight: 600;
-            transition: transform 0.2s;
+            transition: all 0.2s;
+            border: 2px solid var(--accent-primary);
         }
 
         .back-btn:hover {
             transform: translateY(-2px);
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            background: var(--accent-secondary);
+            border-color: var(--accent-secondary);
         }
 
         .dashboard-grid {
@@ -66,17 +155,18 @@
         }
 
         .chart-card {
-            background: white;
+            background: var(--card-bg);
             padding: 25px;
             border-radius: 15px;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            box-shadow: var(--card-shadow);
+            border: 1px solid var(--border-color);
         }
 
         .chart-card h2 {
-            color: #667eea;
+            color: var(--accent-primary);
             margin-bottom: 20px;
             font-size: 1.3em;
-            border-bottom: 3px solid #667eea;
+            border-bottom: 3px solid var(--accent-primary);
             padding-bottom: 10px;
         }
 
@@ -86,15 +176,16 @@
         }
 
         .insights-card {
-            background: white;
+            background: var(--card-bg);
             padding: 30px;
             border-radius: 15px;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            box-shadow: var(--card-shadow);
             margin-top: 30px;
+            border: 1px solid var(--border-color);
         }
 
         .insights-card h2 {
-            color: #667eea;
+            color: var(--accent-primary);
             margin-bottom: 20px;
             font-size: 1.5em;
         }
@@ -102,26 +193,175 @@
         .insight-item {
             padding: 15px;
             margin-bottom: 15px;
-            background: #f5f5f5;
-            border-left: 4px solid #667eea;
+            background: var(--bg-secondary);
+            border-left: 4px solid var(--accent-primary);
             border-radius: 5px;
         }
 
         .insight-item h3 {
-            color: #333;
+            color: var(--text-primary);
             margin-bottom: 8px;
             font-size: 1.1em;
         }
 
         .insight-item p {
-            color: #666;
+            color: var(--text-secondary);
             line-height: 1.6;
+        }
+
+        .employees-card {
+            background: var(--card-bg);
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: var(--card-shadow);
+            margin-top: 30px;
+            border: 1px solid var(--border-color);
+        }
+
+        .employees-card h2 {
+            color: var(--accent-primary);
+            margin-bottom: 20px;
+            font-size: 1.5em;
+        }
+
+        .summary-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin-bottom: 25px;
+        }
+
+        .stat-box {
+            background: var(--accent-primary);
+            color: var(--bg-primary);
+            padding: 15px;
+            border-radius: 10px;
+            text-align: center;
+            border: 2px solid var(--accent-primary);
+        }
+
+        [data-theme="dark"] .stat-box {
+            color: var(--bg-primary);
+        }
+
+        .stat-box.critical {
+            background: #000000;
+            border-color: #000000;
+        }
+
+        [data-theme="dark"] .stat-box.critical {
+            background: #e74c3c;
+            border-color: #e74c3c;
+        }
+
+        .stat-box.high {
+            background: #2d2d2d;
+            border-color: #2d2d2d;
+        }
+
+        [data-theme="dark"] .stat-box.high {
+            background: #f39c12;
+            border-color: #f39c12;
+        }
+
+        .stat-box.medium {
+            background: #6c757d;
+            border-color: #6c757d;
+        }
+
+        [data-theme="dark"] .stat-box.medium {
+            background: #f1c40f;
+            border-color: #f1c40f;
+        }
+
+        .stat-box.info {
+            background: var(--accent-secondary);
+            border-color: var(--accent-secondary);
+        }
+
+        .stat-box .number {
+            font-size: 2em;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .stat-box .label {
+            font-size: 0.9em;
+            opacity: 0.9;
+        }
+
+        .employees-table-container {
+            overflow-x: auto;
+            margin-top: 20px;
+        }
+
+        .employees-table {
+            width: 100%;
+            border-collapse: collapse;
+            background: var(--card-bg);
+        }
+
+        .employees-table th {
+            background: var(--accent-primary);
+            color: var(--bg-primary);
+            padding: 12px;
+            text-align: left;
+            font-weight: 600;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+            border: 1px solid var(--border-color);
+        }
+
+        .employees-table td {
+            padding: 12px;
+            border-bottom: 1px solid var(--border-color);
+            color: var(--text-primary);
+        }
+
+        .employees-table tr:hover {
+            background: var(--table-hover);
+        }
+
+        .risk-badge {
+            display: inline-block;
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 0.85em;
+            font-weight: 600;
+            color: white;
+        }
+
+        .filter-controls {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .filter-controls select, .filter-controls input {
+            padding: 10px;
+            border: 1px solid var(--input-border);
+            border-radius: 8px;
+            font-size: 0.95em;
+            background: var(--input-bg);
+            color: var(--text-primary);
+        }
+
+        .filter-controls select:focus, .filter-controls input:focus {
+            outline: 2px solid var(--accent-primary);
+            outline-offset: 2px;
+        }
+
+        .search-box {
+            flex: 1;
+            min-width: 200px;
         }
 
         .loading {
             text-align: center;
             padding: 40px;
-            color: white;
+            color: var(--text-primary);
             font-size: 1.2em;
         }
     </style>
@@ -129,8 +369,15 @@
 <body>
     <div class="container">
         <div class="header">
+            <div class="theme-toggle">
+                <span class="toggle-label">☀️</span>
+                <div class="toggle-switch" onclick="toggleTheme()">
+                    <div class="toggle-slider"></div>
+                </div>
+                <span class="toggle-label">🌙</span>
+            </div>
             <h1>📊 Analytics Dashboard</h1>
-            <p>Comprehensive Career Path Analysis Insights</p>
+            <p>Comprehensive Career Analysis Insights</p>
         </div>
 
         <a href="/" class="back-btn">← Back to Home</a>
@@ -203,10 +450,118 @@
                     </p>
                 </div>
             </div>
+
+            <div class="employees-card">
+                <h2>🚨 Employees at Attrition Risk</h2>
+                
+                <div id="employeesSummary" class="summary-stats">
+                    <!-- Summary stats will be loaded here -->
+                </div>
+
+                <div class="filter-controls">
+                    <input type="text" id="searchBox" class="search-box" placeholder="🔍 Search by Employee Number, Department, or Job Role...">
+                    <select id="riskFilter">
+                        <option value="all">All Risk Levels</option>
+                        <option value="Critical">Critical Risk</option>
+                        <option value="High">High Risk</option>
+                        <option value="Medium">Medium Risk</option>
+                    </select>
+                    <select id="departmentFilter">
+                        <option value="all">All Departments</option>
+                    </select>
+                </div>
+
+                <div class="employees-table-container">
+                    <table class="employees-table" id="employeesTable">
+                        <thead>
+                            <tr>
+                                <th>Employee #</th>
+                                <th>Risk Level</th>
+                                <th>Age</th>
+                                <th>Department</th>
+                                <th>Job Role</th>
+                                <th>Income</th>
+                                <th>Tenure (Years)</th>
+                                <th>Job Satisfaction</th>
+                                <th>Work-Life Balance</th>
+                                <th>Overtime</th>
+                            </tr>
+                        </thead>
+                        <tbody id="employeesTableBody">
+                            <tr>
+                                <td colspan="10" style="text-align: center; padding: 40px;">
+                                    Loading employee data...
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
         </div>
     </div>
 
     <script>
+        let allEmployees = [];
+        let filteredEmployees = [];
+
+        // Theme management
+        function toggleTheme() {
+            const html = document.documentElement;
+            const currentTheme = html.getAttribute('data-theme');
+            const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+            html.setAttribute('data-theme', newTheme);
+            localStorage.setItem('theme', newTheme);
+            
+            // Update charts colors
+            updateChartsForTheme(newTheme);
+        }
+
+        // Initialize theme from localStorage
+        function initTheme() {
+            const savedTheme = localStorage.getItem('theme') || 'light';
+            document.documentElement.setAttribute('data-theme', savedTheme);
+        }
+
+        // Get theme-aware colors
+        function getThemeColors() {
+            const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+            return {
+                primary: isDark ? '#ffffff' : '#000000',
+                secondary: isDark ? '#e0e0e0' : '#343a40',
+                text: isDark ? '#ffffff' : '#000000',
+                gridColor: isDark ? '#404040' : '#dee2e6',
+                bgColor: isDark ? '#1e1e1e' : '#ffffff'
+            };
+        }
+
+        let featureChart, attritionChart, departmentChart;
+
+        function updateChartsForTheme(theme) {
+            const colors = getThemeColors();
+            
+            // Update all charts with new colors
+            if (featureChart) {
+                featureChart.options.scales.x.ticks.color = colors.text;
+                featureChart.options.scales.x.grid.color = colors.gridColor;
+                featureChart.options.scales.y.ticks.color = colors.text;
+                featureChart.options.scales.y.grid.color = colors.gridColor;
+                featureChart.update();
+            }
+            
+            if (attritionChart) {
+                attritionChart.options.plugins.legend.labels.color = colors.text;
+                attritionChart.update();
+            }
+            
+            if (departmentChart) {
+                departmentChart.options.scales.x.ticks.color = colors.text;
+                departmentChart.options.scales.x.grid.color = colors.gridColor;
+                departmentChart.options.scales.y.ticks.color = colors.text;
+                departmentChart.options.scales.y.grid.color = colors.gridColor;
+                departmentChart.update();
+            }
+        }
+
         // Load and display analytics
         async function loadAnalytics() {
             try {
@@ -218,21 +573,35 @@
                 const statsResponse = await fetch('/api/dataset_stats');
                 const statsData = await statsResponse.json();
 
+                // Fetch at-risk employees
+                const employeesResponse = await fetch('/api/at_risk_employees');
+                const employeesData = await employeesResponse.json();
+
                 // Hide loading
                 document.getElementById('loading').style.display = 'none';
                 document.getElementById('dashboard').style.display = 'block';
 
+                // Load employees data
+                if (employeesData.success) {
+                    allEmployees = employeesData.employees;
+                    filteredEmployees = allEmployees;
+                    displayEmployeesSummary(employeesData.summary);
+                    displayEmployeesTable(allEmployees);
+                    populateDepartmentFilter(allEmployees);
+                }
+
                 // Create Feature Importance Chart
+                const colors = getThemeColors();
                 const featureCtx = document.getElementById('featureChart').getContext('2d');
-                new Chart(featureCtx, {
+                featureChart = new Chart(featureCtx, {
                     type: 'bar',
                     data: {
                         labels: featureData.features.slice(0, 10),
                         datasets: [{
                             label: 'Importance Score',
                             data: featureData.importances.slice(0, 10),
-                            backgroundColor: 'rgba(102, 126, 234, 0.8)',
-                            borderColor: 'rgba(102, 126, 234, 1)',
+                            backgroundColor: colors.primary + 'cc',
+                            borderColor: colors.primary,
                             borderWidth: 2
                         }]
                     },
@@ -250,7 +619,22 @@
                                 beginAtZero: true,
                                 title: {
                                     display: true,
-                                    text: 'Importance'
+                                    text: 'Importance',
+                                    color: colors.text
+                                },
+                                ticks: {
+                                    color: colors.text
+                                },
+                                grid: {
+                                    color: colors.gridColor
+                                }
+                            },
+                            y: {
+                                ticks: {
+                                    color: colors.text
+                                },
+                                grid: {
+                                    color: colors.gridColor
                                 }
                             }
                         }
@@ -263,20 +647,17 @@
                 const totalCount = parseInt(statsData.total_employees);
                 const retentionCount = totalCount - attritionCount;
 
-                new Chart(attritionCtx, {
+                attritionChart = new Chart(attritionCtx, {
                     type: 'doughnut',
                     data: {
                         labels: ['Retained', 'Attrition'],
                         datasets: [{
                             data: [retentionCount, attritionCount],
                             backgroundColor: [
-                                'rgba(76, 175, 80, 0.8)',
-                                'rgba(244, 67, 54, 0.8)'
+                                colors.primary === '#ffffff' ? '#4caf50' : '#2ecc71',
+                                colors.primary === '#ffffff' ? '#f44336' : '#e74c3c'
                             ],
-                            borderColor: [
-                                'rgba(76, 175, 80, 1)',
-                                'rgba(244, 67, 54, 1)'
-                            ],
+                            borderColor: colors.bgColor,
                             borderWidth: 2
                         }]
                     },
@@ -285,7 +666,10 @@
                         maintainAspectRatio: false,
                         plugins: {
                             legend: {
-                                position: 'bottom'
+                                position: 'bottom',
+                                labels: {
+                                    color: colors.text
+                                }
                             }
                         }
                     }
@@ -293,7 +677,7 @@
 
                 // Create Department Chart
                 const deptCtx = document.getElementById('departmentChart').getContext('2d');
-                new Chart(deptCtx, {
+                departmentChart = new Chart(deptCtx, {
                     type: 'bar',
                     data: {
                         labels: statsData.departments || ['Sales', 'Research', 'HR'],
@@ -301,15 +685,11 @@
                             label: 'Employee Count',
                             data: [446, 961, 63], // Sample data
                             backgroundColor: [
-                                'rgba(255, 99, 132, 0.8)',
-                                'rgba(54, 162, 235, 0.8)',
-                                'rgba(255, 206, 86, 0.8)'
+                                '#6c757d',
+                                '#495057',
+                                '#343a40'
                             ],
-                            borderColor: [
-                                'rgba(255, 99, 132, 1)',
-                                'rgba(54, 162, 235, 1)',
-                                'rgba(255, 206, 86, 1)'
-                            ],
+                            borderColor: colors.primary,
                             borderWidth: 2
                         }]
                     },
@@ -326,7 +706,22 @@
                                 beginAtZero: true,
                                 title: {
                                     display: true,
-                                    text: 'Employees'
+                                    text: 'Employees',
+                                    color: colors.text
+                                },
+                                ticks: {
+                                    color: colors.text
+                                },
+                                grid: {
+                                    color: colors.gridColor
+                                }
+                            },
+                            x: {
+                                ticks: {
+                                    color: colors.text
+                                },
+                                grid: {
+                                    color: colors.gridColor
                                 }
                             }
                         }
@@ -338,6 +733,106 @@
                     '<p style="color: #f44336;">Error loading analytics: ' + error.message + '</p>';
             }
         }
+
+        // Display employees summary statistics
+        function displayEmployeesSummary(summary) {
+            const summaryHtml = `
+                <div class="stat-box">
+                    <div class="number">${summary.total_at_risk}</div>
+                    <div class="label">Total At Risk</div>
+                </div>
+                <div class="stat-box critical">
+                    <div class="number">${summary.critical_risk}</div>
+                    <div class="label">Critical Risk</div>
+                </div>
+                <div class="stat-box high">
+                    <div class="number">${summary.high_risk}</div>
+                    <div class="label">High Risk</div>
+                </div>
+                <div class="stat-box medium">
+                    <div class="number">${summary.medium_risk}</div>
+                    <div class="label">Medium Risk</div>
+                </div>
+                <div class="stat-box info">
+                    <div class="number">${summary.avg_tenure.toFixed(1)}</div>
+                    <div class="label">Avg Tenure (Years)</div>
+                </div>
+                <div class="stat-box info">
+                    <div class="number">$${Math.round(summary.avg_income).toLocaleString()}</div>
+                    <div class="label">Avg Income</div>
+                </div>
+            `;
+            document.getElementById('employeesSummary').innerHTML = summaryHtml;
+        }
+
+        // Display employees table
+        function displayEmployeesTable(employees) {
+            const tbody = document.getElementById('employeesTableBody');
+            
+            if (employees.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="10" style="text-align: center; padding: 40px;">No employees found matching filters</td></tr>';
+                return;
+            }
+
+            const rows = employees.map(emp => `
+                <tr>
+                    <td><strong>${emp.EmployeeNumber}</strong></td>
+                    <td><span class="risk-badge" style="background-color: ${emp.risk_color}">${emp.risk_level}</span></td>
+                    <td>${emp.Age}</td>
+                    <td>${emp.Department}</td>
+                    <td>${emp.JobRole}</td>
+                    <td>$${emp.MonthlyIncome ? emp.MonthlyIncome.toLocaleString() : 'N/A'}</td>
+                    <td>${emp.YearsAtCompany}</td>
+                    <td>${emp.JobSatisfaction}/4</td>
+                    <td>${emp.WorkLifeBalance}/4</td>
+                    <td>${emp.OverTime === 'Yes' ? '⚠️ Yes' : 'No'}</td>
+                </tr>
+            `).join('');
+            
+            tbody.innerHTML = rows;
+        }
+
+        // Populate department filter
+        function populateDepartmentFilter(employees) {
+            const departments = [...new Set(employees.map(e => e.Department))];
+            const select = document.getElementById('departmentFilter');
+            
+            departments.forEach(dept => {
+                const option = document.createElement('option');
+                option.value = dept;
+                option.textContent = dept;
+                select.appendChild(option);
+            });
+        }
+
+        // Filter functions
+        function applyFilters() {
+            const searchTerm = document.getElementById('searchBox').value.toLowerCase();
+            const riskFilter = document.getElementById('riskFilter').value;
+            const deptFilter = document.getElementById('departmentFilter').value;
+
+            filteredEmployees = allEmployees.filter(emp => {
+                const matchesSearch = !searchTerm || 
+                    emp.EmployeeNumber.toString().includes(searchTerm) ||
+                    emp.Department.toLowerCase().includes(searchTerm) ||
+                    emp.JobRole.toLowerCase().includes(searchTerm);
+                
+                const matchesRisk = riskFilter === 'all' || emp.risk_level === riskFilter;
+                const matchesDept = deptFilter === 'all' || emp.Department === deptFilter;
+
+                return matchesSearch && matchesRisk && matchesDept;
+            });
+
+            displayEmployeesTable(filteredEmployees);
+        }
+
+        // Event listeners for filters
+        document.addEventListener('DOMContentLoaded', () => {
+            initTheme(); // Initialize theme on page load
+            document.getElementById('searchBox').addEventListener('input', applyFilters);
+            document.getElementById('riskFilter').addEventListener('change', applyFilters);
+            document.getElementById('departmentFilter').addEventListener('change', applyFilters);
+        });
 
         // Load on page load
         window.addEventListener('load', loadAnalytics);
