@@ -471,6 +471,85 @@ def model_info():
         traceback.print_exc()
         return jsonify({'error': str(e)}), 500
 
+@app.route('/api/at_risk_employees')
+def at_risk_employees():
+    """Get list of employees at attrition risk from the dataset"""
+    try:
+        if df_original is None:
+            return jsonify({'error': 'Dataset not loaded'}), 400
+        
+        # Filter employees with Attrition = 'Yes'
+        at_risk_df = df_original[df_original['Attrition'] == 'Yes'].copy()
+        
+        # Select relevant columns for display
+        columns_to_show = [
+            'EmployeeNumber', 'Age', 'Department', 'JobRole', 
+            'MonthlyIncome', 'YearsAtCompany', 'JobSatisfaction',
+            'WorkLifeBalance', 'OverTime', 'DistanceFromHome'
+        ]
+        
+        # Ensure columns exist
+        available_columns = [col for col in columns_to_show if col in at_risk_df.columns]
+        at_risk_data = at_risk_df[available_columns].copy()
+        
+        # Sort by monthly income (descending) to show high-value at-risk employees first
+        if 'MonthlyIncome' in at_risk_data.columns:
+            at_risk_data = at_risk_data.sort_values('MonthlyIncome', ascending=False)
+        
+        # Convert to dictionary format
+        employees = at_risk_data.to_dict('records')
+        
+        # Add risk level based on multiple factors
+        for emp in employees:
+            risk_score = 0
+            
+            # Factors that increase risk
+            if emp.get('JobSatisfaction', 3) <= 2:
+                risk_score += 2
+            if emp.get('WorkLifeBalance', 3) <= 2:
+                risk_score += 2
+            if emp.get('OverTime') == 'Yes':
+                risk_score += 1
+            if emp.get('YearsAtCompany', 10) < 2:
+                risk_score += 2
+            if emp.get('DistanceFromHome', 0) > 20:
+                risk_score += 1
+            
+            # Determine risk level
+            if risk_score >= 5:
+                emp['risk_level'] = 'Critical'
+                emp['risk_color'] = '#e74c3c'
+            elif risk_score >= 3:
+                emp['risk_level'] = 'High'
+                emp['risk_color'] = '#f39c12'
+            else:
+                emp['risk_level'] = 'Medium'
+                emp['risk_color'] = '#f1c40f'
+        
+        # Sort by risk level (Critical first)
+        risk_order = {'Critical': 0, 'High': 1, 'Medium': 2}
+        employees.sort(key=lambda x: risk_order[x['risk_level']])
+        
+        summary = {
+            'total_at_risk': len(employees),
+            'critical_risk': sum(1 for e in employees if e['risk_level'] == 'Critical'),
+            'high_risk': sum(1 for e in employees if e['risk_level'] == 'High'),
+            'medium_risk': sum(1 for e in employees if e['risk_level'] == 'Medium'),
+            'avg_tenure': float(at_risk_data['YearsAtCompany'].mean()) if 'YearsAtCompany' in at_risk_data.columns else 0,
+            'avg_income': float(at_risk_data['MonthlyIncome'].mean()) if 'MonthlyIncome' in at_risk_data.columns else 0
+        }
+        
+        return jsonify({
+            'success': True,
+            'employees': employees,
+            'summary': summary
+        })
+        
+    except Exception as e:
+        print(f"At-risk employees error: {str(e)}")
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 500
+
 @app.route('/api/retrain', methods=['POST'])
 def retrain_model():
     """Retrain the model with current dataset"""
